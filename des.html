@@ -136,25 +136,30 @@ const binToHex = (bin) => parseInt(bin, 2).toString(16);
 const bin = key => chunkString(key, 2).map(hex => hexToBin(hex)).join("");
 const shiftString = (str, shift) => str.slice(shift, str.length) + str.slice(0, shift);
 
-const keySchedule = (key) => {
+const keySchedule = (key) => {// sinh  khóa k
+  
   let subkeys = [];
-  let perm = PC1.map(index => key[index - 1]).join("");
-  let C0 = perm.substr(0, perm.length / 2);
+  let perm = PC1.map(index => key[index - 1]).join("");//hoán vị PC1
+  let C0 = perm.substr(0, perm.length / 2);//28bit
   let D0 = perm.substr(perm.length / 2);
   let prevC0 = C0, prevD0 = D0;
-  NUM_OF_LEFT_SHIFTS.forEach((shift, i) => {
+  NUM_OF_LEFT_SHIFTS.forEach((shift, i) => { // dịch vòng trái,16 vòng
     C0 = shiftString(prevC0, shift);
     D0 = shiftString(prevD0, shift);
     prevC0 = C0;
     prevD0 = D0;
     let pair = C0 + D0;
-    subkeys.push(PC2.map(index => pair[index - 1]).join(""));
+    subkeys.push(PC2.map(index => pair[index - 1]).join(""));//hoán vị PC2 48bit
+   
+    //console.log(hex_result);
+   // console.log(i+" "+binToHex(PC2.map(index => pair[index - 1]).join("")));
+
   });
 
   return subkeys;
 };
 
-const expandBlock = block => E.map(index => block[index - 1]).join("");
+const expandBlock = block => E.map(index => block[index - 1]).join("");//Mở rộng nữa phải
 
 const stringXOR = (str1, str2, len) => {
   let xor = Array(len);
@@ -165,30 +170,30 @@ const stringXOR = (str1, str2, len) => {
 }
 
 const sBoxOutput = bits => {
-  return chunkString(bits, 6).map((group, sBox) => {
-    let row = parseInt(group[0] + group[5], 2);
-    let col = parseInt(group.slice(1, 5), 2);
-    return decToBin(S[sBox][16 * row + col]);
-  }).join("");
+  return chunkString(bits, 6).map((group, sBox) => {//8 vòng
+    let row = parseInt(group[0] + group[5], 2);// lấy row= bit đầu+cuối =>chuyển thành thập phân
+    let col = parseInt(group.slice(1, 5), 2);//lấy col= bit 2-5=>chuyển thành thập phân
+    return decToBin(S[sBox][16 * row + col]);//tìm S(i)B(i) tương ứng và chuyển về nhị phân 
+  }).join("");//nối 8 S-box thành 1
 };
 
 const des = (msg, key, subkeys) => {
-  let perm = IP.map(index => msg[index - 1]).join(""); // init permute (IP)
-  let L0 = perm.substr(0, perm.length / 2);
+  let perm = IP.map(index => msg[index - 1]).join(""); // hoán vị ip
+  let L0 = perm.substr(0, perm.length / 2);//chia đôi  32bit
   let R0 = perm.substr(perm.length / 2);
 
   let prevL0 = L0, prevR0 = R0;
-  for (let i = 0; i < 16; i++) {
-    L0 = prevR0;
-    let sBoxOut = sBoxOutput(stringXOR(subkeys[i], expandBlock(R0), 48));
-    let finalPerm = P.map(index => sBoxOut[index - 1]).join("");
-    R0 = stringXOR(prevL0, finalPerm, 32);
-    prevL0 = L0;
+  for (let i = 0; i < 16; i++) {//16 vòng
+    L0 = prevR0;//L(i)=R(i-1)
+    let sBoxOut = sBoxOutput(stringXOR(subkeys[i], expandBlock(R0), 48));//thế S-box
+    let finalPerm = P.map(index => sBoxOut[index - 1]).join("");//hoán vị S=>P 32bit
+    R0 = stringXOR(prevL0, finalPerm, 32);//R(i) = L(i-1) XOR P
+    prevL0 = L0;//thiết lập lại L(i),R(i)
     prevR0 = R0;
   }
-  let pair = R0 + L0;
-  let enc = FINAL_IP.map(index => pair[index - 1]).join("");
-  return chunkString(enc, 4).map(binToHex).join("").toUpperCase();
+  let pair = R0 + L0;// ghép L và R sau 16 vòng lặp
+  let enc = FINAL_IP.map(index => pair[index - 1]).join("");// hoán vị IP-1
+  return chunkString(enc, 4).map(binToHex).join("").toUpperCase();// chia làm các phần con 4bit và chuyển về Hex
 }
 
   function encrypt() {
@@ -201,7 +206,7 @@ const des = (msg, key, subkeys) => {
   function decrypt() {
     const ciphertext = bin(document.getElementById("plaintext").value);
     const key = bin(document.getElementById("key").value);
-    const decode = (msg, key) => des(msg, key, keySchedule(key).reverse());
+    const decode = (msg, key) => des(msg, key, keySchedule(key).reverse());//chạy ngược khóa
     let decrypted = decode(ciphertext, key);
     document.getElementById("result").value = decrypted;
   }
